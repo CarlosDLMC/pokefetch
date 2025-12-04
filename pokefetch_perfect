@@ -1,0 +1,106 @@
+#!/bin/bash
+# Display Pokemon with neofetch side-by-side
+
+# Get pokemon (use -r for random, or pass name as argument)
+if [ -z "$1" ]; then
+    pokemon_output=$(pokemon-colorscripts -r 1-3 --no-title)
+else
+    pokemon_output=$(pokemon-colorscripts -n "$1" --no-title)
+fi
+#pokemon_output=$(cat /usr/local/opt/pokemon-colorscripts/colorscripts/small/regular/charizard)
+
+# Get neofetch info
+#neofetch_output=$(neofetch --off)
+neofetch_output=$(fastfetch --config ~/.config/fastfetch/pokefetch.jsonc --logo none --pipe false)
+
+# Process output to clean up CPU and GPU names
+neofetch_output=$(echo "$neofetch_output" | while IFS= read -r line; do
+  # Strip ANSI codes for pattern matching, but preserve them in output
+  clean_line=$(echo "$line" | sed -E 's/\x1b\[[0-9;]*[mGKHfA-Z]//g' | sed -E 's/\x1b\][0-9];.*\x07//g')
+
+  # CPU: Extract model name and clean up frequency
+  if echo "$clean_line" | grep -q "CPU.*: Intel(R) Core(TM)"; then
+    line=$(echo "$line" | sed -E 's/Intel\(R\) Core\(TM\) (i[0-9]-[0-9]+H) @ ([0-9.]+) GHz/\1 \2GHz/')
+  fi
+
+  # GPU: Extract model numbers
+  if echo "$clean_line" | grep -q "GPU.*: GeForce GTX"; then
+    line=$(echo "$line" | sed -E 's/GeForce (GTX [0-9]+)[^a-zA-Z0-9]*.*$/\1/')
+  elif echo "$clean_line" | grep -q "GPU.*: UHD Graphics"; then
+    line=$(echo "$line" | sed -E 's/UHD Graphics ([0-9]+).*$/UHD \1/')
+  fi
+
+  # Icons, Theme, Font: Remove [GTK2/3/4] suffix
+  if echo "$clean_line" | grep -qE "(Icons|Theme|Font).*:"; then
+    line=$(echo "$line" | sed -E 's/ \[GTK[0-9/]+\]//g')
+  fi
+
+  # Disk: Change GiB to G
+  line=$(echo "$line" | sed 's/GiB/G/g')
+
+  echo "$line"
+done)
+
+# Count lines in each output
+pokemon_lines=$(echo "$pokemon_output" | wc -l)
+neofetch_lines=$(echo "$neofetch_output" | wc -l)
+
+# Calculate the visual width of pokemon (strip ANSI codes to get real width)
+# Find the longest line visually
+max_width=0
+while IFS= read -r line; do
+    # Strip ANSI escape codes to get visual length
+    visual_line=$(printf '%s' "$line" | sed -E 's/\x1b\[[0-9;]*[mGKHfA-Z]//g' | sed -E 's/\x1b\][0-9];.*\x07//g')
+    line_width=${#visual_line}
+    if [ $line_width -gt $max_width ]; then
+        max_width=$line_width
+    fi
+done <<< "$pokemon_output"
+
+# Normalize all existing pokemon lines to the same width by padding with spaces
+normalized_pokemon=""
+while IFS= read -r line; do
+    visual_line=$(printf '%s' "$line" | sed -E 's/\x1b\[[0-9;]*[mGKHfA-Z]//g' | sed -E 's/\x1b\][0-9];.*\x07//g')
+    current_width=${#visual_line}
+    padding_needed=$((max_width - current_width))
+    padding=$(printf '%*s' "$padding_needed" '')
+    normalized_pokemon="${normalized_pokemon}${line}${padding}"$'\n'
+done <<< "$pokemon_output"
+
+# Remove trailing newline
+normalized_pokemon="${normalized_pokemon%$'\n'}"
+
+# Pad the shorter output with empty lines (centered vertically)
+if [ "$pokemon_lines" -lt "$neofetch_lines" ]; then
+    # Pokemon is shorter, center it vertically
+    total_padding=$((neofetch_lines - pokemon_lines))
+    top_padding=$((total_padding / 2))
+    bottom_padding=$((total_padding - top_padding))
+    
+    padding_line=$(printf '%*s' "$max_width" '')
+    
+    # Add top padding
+    top_padded=""
+    for ((i=0; i<top_padding; i++)); do
+        top_padded="${top_padded}${padding_line}"$'\n'
+    done
+    
+    # Add pokemon
+    top_padded="${top_padded}${normalized_pokemon}"
+    
+    # Add bottom padding
+    for ((i=0; i<bottom_padding; i++)); do
+        top_padded="${top_padded}"$'\n'"${padding_line}"
+    done
+    
+    normalized_pokemon="$top_padded"
+elif [ "$neofetch_lines" -lt "$pokemon_lines" ]; then
+    # Neofetch is shorter, pad it
+    padding=$((pokemon_lines - neofetch_lines))
+    for ((i=0; i<padding; i++)); do
+        neofetch_output="$neofetch_output"$'\n'
+    done
+fi
+
+# Merge line by line with spacing
+paste <(echo "$normalized_pokemon") <(echo "$neofetch_output") | sed 's/\t/  /'

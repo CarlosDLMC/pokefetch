@@ -1,0 +1,60 @@
+{
+  "display": {
+    "size": {
+      "binaryPrefix": "iec",
+      "ndigits": 2,
+      "spaceBeforeUnit": "never"
+    }
+  },
+  "modules": [
+    "title",
+    {
+      "type": "custom",
+      "format": "\u001b[97m------------------\u001b[0m"
+    },
+    {
+      "type": "os",
+      "format": "{2} {9}"
+    },
+    {
+      "type": "kernel",
+      "format": "{2}"
+    },
+    "uptime",
+    "shell",
+    "theme",
+    "icons",
+    "font",
+    {
+      "type": "cpu",
+      "format": "{name} @ {freq-max}"
+    },
+    "cpuusage",
+    {
+      "type": "gpu",
+      "format": "{name}"
+    },
+    {
+      "type": "memory",
+      "format": "{used} / {total}",
+      "key": "Memory"
+    },
+    {
+      "type": "memory",
+      "format": "{percentage}",
+      "key": "Memory Usage"
+    },
+    {
+      "type": "disk",
+      "format": "{size-used} / {size-total}",
+      "folders": "/",
+      "key": "Disk (/)"
+    },
+    {
+      "type": "disk",
+      "format": "{size-percentage}",
+      "folders": "/",
+      "key": "Disk Usage"
+    }
+  ]
+}
