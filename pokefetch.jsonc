@@ -29,7 +29,6 @@
       "type": "cpu",
       "format": "{name} @ {freq-max}"
     },
-    "cpuusage",
     {
       "type": "gpu",
       "format": "{name}"

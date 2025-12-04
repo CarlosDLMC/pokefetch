@@ -13,8 +13,7 @@ IFS=$'\n' lines=($pokemon_full_output)
 pokemon_name="${lines[0]^}"  # Capitalize first letter
 pokemon_output="${pokemon_full_output#*$'\n'}"  # Remove first line
 
-# Get neofetch info
-#neofetch_output=$(neofetch --off)
+# Get fastfetch info
 neofetch_output=$(fastfetch --config ~/.config/fastfetch/pokefetch.jsonc --logo none --pipe false)
 
 # Inject Pokemon name after the separator line (using bash instead of awk)
@@ -39,83 +38,5 @@ neofetch_output=$(echo "$neofetch_output" | sed -E '
   s/GiB/G/g
 ')
 
-# Count lines in each output (using bash built-ins, much faster)
-IFS=$'\n' pokemon_array=($pokemon_output)
-IFS=$'\n' neofetch_array=($neofetch_output)
-pokemon_lines=${#pokemon_array[@]}
-neofetch_lines=${#neofetch_array[@]}
-
-# Calculate width and normalize (using perl for much faster ANSI stripping)
-if command -v perl &>/dev/null; then
-    # Perl is 10x faster than sed for this
-    mapfile -t normalized_lines < <(echo "$pokemon_output" | perl -pe 's/\e\[[0-9;]*[mGKHfA-Z]|\e\][0-9];[^\a]*\a//g')
-    max_width=0
-    for line in "${normalized_lines[@]}"; do
-        [ ${#line} -gt $max_width ] && max_width=${#line}
-    done
-
-    # Build normalized pokemon with padding
-    normalized_pokemon=""
-    IFS=$'\n'
-    i=0
-    for line in $pokemon_output; do
-        width=${#normalized_lines[$i]}
-        padding=$(printf '%*s' "$((max_width - width))" '')
-        normalized_pokemon+="${line}${padding}"$'\n'
-        ((i++))
-    done
-else
-    # Fallback to sed if perl not available
-    max_width=0
-    normalized_lines=()
-    while IFS= read -r line; do
-        visual_line=$(printf '%s' "$line" | sed -E 's/\x1b(\[[0-9;]*[mGKHfA-Z]|\][0-9];[^\x07]*\x07)//g')
-        line_width=${#visual_line}
-        [ $line_width -gt $max_width ] && max_width=$line_width
-        normalized_lines+=("$line|$line_width")
-    done <<< "$pokemon_output"
-
-    normalized_pokemon=""
-    for entry in "${normalized_lines[@]}"; do
-        line="${entry%|*}"
-        width="${entry##*|}"
-        padding=$(printf '%*s' "$((max_width - width))" '')
-        normalized_pokemon+="${line}${padding}"$'\n'
-    done
-fi
-normalized_pokemon="${normalized_pokemon%$'\n'}"
-
-# Pad the shorter output with empty lines (centered vertically)
-if [ "$pokemon_lines" -lt "$neofetch_lines" ]; then
-    # Pokemon is shorter, center it vertically
-    total_padding=$((neofetch_lines - pokemon_lines))
-    top_padding=$((total_padding / 2))
-    bottom_padding=$((total_padding - top_padding))
-    
-    padding_line=$(printf '%*s' "$max_width" '')
-    
-    # Add top padding
-    top_padded=""
-    for ((i=0; i<top_padding; i++)); do
-        top_padded="${top_padded}${padding_line}"$'\n'
-    done
-    
-    # Add pokemon
-    top_padded="${top_padded}${normalized_pokemon}"
-    
-    # Add bottom padding
-    for ((i=0; i<bottom_padding; i++)); do
-        top_padded="${top_padded}"$'\n'"${padding_line}"
-    done
-    
-    normalized_pokemon="$top_padded"
-elif [ "$neofetch_lines" -lt "$pokemon_lines" ]; then
-    # Neofetch is shorter, pad it
-    padding=$((pokemon_lines - neofetch_lines))
-    for ((i=0; i<padding; i++)); do
-        neofetch_output="$neofetch_output"$'\n'
-    done
-fi
-
-# Merge line by line with spacing
-paste <(echo "$normalized_pokemon") <(echo "$neofetch_output") | sed 's/\t/  /'
+# Use Python helper for fast padding and merging (10x faster than bash)
+printf '%s\n---DELIMITER---\n%s' "$pokemon_output" "$neofetch_output" | ~/.local/bin/pokefetch-merge
