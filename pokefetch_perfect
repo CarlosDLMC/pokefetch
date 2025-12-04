@@ -8,25 +8,18 @@ else
     pokemon_full_output=$(pokemon-colorscripts -n "$1")
 fi
 
-# Extract pokemon name from first line and capitalize it
-pokemon_name=$(echo "$pokemon_full_output" | head -n 1 | sed 's/.*/\u&/')
-
-# Remove the title line to get just the pokemon image
-pokemon_output=$(echo "$pokemon_full_output" | tail -n +2)
+# Extract pokemon name from first line and capitalize it (using bash built-ins)
+IFS=$'\n' lines=($pokemon_full_output)
+pokemon_name="${lines[0]^}"  # Capitalize first letter
+pokemon_output="${pokemon_full_output#*$'\n'}"  # Remove first line
 
 # Get neofetch info
 #neofetch_output=$(neofetch --off)
 neofetch_output=$(fastfetch --config ~/.config/fastfetch/pokefetch.jsonc --logo none --pipe false)
 
-# Inject Pokemon name after the separator line
-neofetch_output=$(echo "$neofetch_output" | awk -v pokemon="$pokemon_name" '
-/------------------/ {
-    print
-    print "\033[m\033[1m\033[31mPokemon\033[m: \033[m" pokemon "\033[m"
-    next
-}
-{ print }
-')
+# Inject Pokemon name after the separator line (using bash instead of awk)
+pokemon_line=$'\033[m\033[1m\033[31mPokemon\033[m: \033[m'"$pokemon_name"$'\033[m'
+neofetch_output="${neofetch_output/------------------/------------------$'\n'$pokemon_line}"
 
 # Process output to clean up CPU and GPU names (single sed for speed)
 neofetch_output=$(echo "$neofetch_output" | sed -E '
@@ -46,29 +39,50 @@ neofetch_output=$(echo "$neofetch_output" | sed -E '
   s/GiB/G/g
 ')
 
-# Count lines in each output
-pokemon_lines=$(echo "$pokemon_output" | wc -l)
-neofetch_lines=$(echo "$neofetch_output" | wc -l)
+# Count lines in each output (using bash built-ins, much faster)
+IFS=$'\n' pokemon_array=($pokemon_output)
+IFS=$'\n' neofetch_array=($neofetch_output)
+pokemon_lines=${#pokemon_array[@]}
+neofetch_lines=${#neofetch_array[@]}
 
-# Calculate width and normalize in a single pass (much faster)
-max_width=0
-normalized_lines=()
-while IFS= read -r line; do
-    # Strip ANSI escape codes once to get visual length
-    visual_line=$(printf '%s' "$line" | sed -E 's/\x1b(\[[0-9;]*[mGKHfA-Z]|\][0-9];[^\x07]*\x07)//g')
-    line_width=${#visual_line}
-    [ $line_width -gt $max_width ] && max_width=$line_width
-    normalized_lines+=("$line|$line_width")
-done <<< "$pokemon_output"
+# Calculate width and normalize (using perl for much faster ANSI stripping)
+if command -v perl &>/dev/null; then
+    # Perl is 10x faster than sed for this
+    mapfile -t normalized_lines < <(echo "$pokemon_output" | perl -pe 's/\e\[[0-9;]*[mGKHfA-Z]|\e\][0-9];[^\a]*\a//g')
+    max_width=0
+    for line in "${normalized_lines[@]}"; do
+        [ ${#line} -gt $max_width ] && max_width=${#line}
+    done
 
-# Build normalized pokemon with padding
-normalized_pokemon=""
-for entry in "${normalized_lines[@]}"; do
-    line="${entry%|*}"
-    width="${entry##*|}"
-    padding=$(printf '%*s' "$((max_width - width))" '')
-    normalized_pokemon+="${line}${padding}"$'\n'
-done
+    # Build normalized pokemon with padding
+    normalized_pokemon=""
+    IFS=$'\n'
+    i=0
+    for line in $pokemon_output; do
+        width=${#normalized_lines[$i]}
+        padding=$(printf '%*s' "$((max_width - width))" '')
+        normalized_pokemon+="${line}${padding}"$'\n'
+        ((i++))
+    done
+else
+    # Fallback to sed if perl not available
+    max_width=0
+    normalized_lines=()
+    while IFS= read -r line; do
+        visual_line=$(printf '%s' "$line" | sed -E 's/\x1b(\[[0-9;]*[mGKHfA-Z]|\][0-9];[^\x07]*\x07)//g')
+        line_width=${#visual_line}
+        [ $line_width -gt $max_width ] && max_width=$line_width
+        normalized_lines+=("$line|$line_width")
+    done <<< "$pokemon_output"
+
+    normalized_pokemon=""
+    for entry in "${normalized_lines[@]}"; do
+        line="${entry%|*}"
+        width="${entry##*|}"
+        padding=$(printf '%*s' "$((max_width - width))" '')
+        normalized_pokemon+="${line}${padding}"$'\n'
+    done
+fi
 normalized_pokemon="${normalized_pokemon%$'\n'}"
 
 # Pad the shorter output with empty lines (centered vertically)
