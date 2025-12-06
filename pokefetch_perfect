@@ -22,8 +22,10 @@ neofetch_output="${neofetch_output/------------------/------------------$'\n'$po
 
 # Process output to clean up CPU and GPU names (single sed for speed)
 neofetch_output=$(echo "$neofetch_output" | sed -E '
-  # CPU: Extract model name and clean up frequency
+  # CPU Intel: Extract model name and clean up frequency
   s/Intel\(R\) Core\(TM\) (i[0-9]-[0-9]+H) @ ([0-9.]+) GHz/\1 \2GHz/
+  # CPU AMD: Shorten Ryzen output
+  s/AMD Ryzen [0-9] ([0-9]+) @ ([0-9.]+) GHz/Ryzen \1 \2GHz/
   # GPU NVIDIA GTX: Extract model numbers
   s/GeForce (GTX [0-9]+)[^a-zA-Z0-9]*.*$/\1/
   # GPU NVIDIA RTX: Extract model numbers
@@ -32,7 +34,11 @@ neofetch_output=$(echo "$neofetch_output" | sed -E '
   s/UHD Graphics ([0-9]+).*$/UHD \1/
   # GPU AMD: Extract model numbers
   s/(AMD )?Radeon (RX [0-9]+ ?[A-Z]*)[^a-zA-Z0-9]*.*$/\2/
-  # Icons, Theme, Font: Remove [GTK2/3/4] suffix
+  # Font, Theme, Icons: Remove parentheses content first
+  s/ \([^)]*\)//g
+  # Font, Theme, Icons: Remove everything before and including bracketed part with comma
+  s/: [^:]+ \[[^]]+\], /: /
+  # Icons, Theme, Font: Remove remaining [GTK2/3/4] suffix (if no comma)
   s/ \[GTK[0-9/]+\]//g
   # Disk: Change GiB to G
   s/GiB/G/g
