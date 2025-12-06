@@ -14,46 +14,69 @@
     },
     {
       "type": "os",
-      "format": "{2} {9}"
+      "format": "{2} {9}",
+      "keyColor": "red"
     },
     {
       "type": "kernel",
-      "format": "{2}"
+      "format": "{2}",
+      "keyColor": "red"
     },
-    "uptime",
-    "shell",
-    "theme",
-    "icons",
-    "font",
+    {
+      "type": "uptime",
+      "keyColor": "red"
+    },
+    {
+      "type": "shell",
+      "keyColor": "red"
+    },
+    {
+      "type": "theme",
+      "keyColor": "red"
+    },
+    {
+      "type": "icons",
+      "keyColor": "red"
+    },
+    {
+      "type": "font",
+      "keyColor": "red"
+    },
     {
       "type": "cpu",
-      "format": "{name} @ {freq-max}"
+      "format": "{name} @ {freq-max}",
+      "keyColor": "red"
     },
     {
       "type": "gpu",
-      "format": "{name}"
+      "format": "{name}",
+      "keyColor": "red"
     },
     {
       "type": "memory",
       "format": "{used} / {total}",
-      "key": "Memory"
+      "key": "Memory",
+      "keyColor": "red"
     },
     {
       "type": "memory",
       "format": "{percentage}",
-      "key": "Memory Usage"
+      "key": "Memory Usage",
+      "keyColor": "red"
     },
     {
       "type": "disk",
       "format": "{size-used} / {size-total}",
       "folders": "/",
-      "key": "Disk (/)"
+      "key": "Disk (/)",
+      "keyColor": "red"
     },
     {
       "type": "disk",
       "format": "{size-percentage}",
       "folders": "/",
-      "key": "Disk Usage"
+      "key": "Disk Usage",
+      "keyColor": "red"
     }
   ]
 }
